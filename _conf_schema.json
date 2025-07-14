@@ -35,6 +35,12 @@
           "default": false,
           "hint": "开启后，插件将根据下方设置自动处理入群邀请"
         },
+        "admin_qq": {
+      "type": "integer",
+      "title": "管理员QQ号 (用于接收通知)",
+      "default": 0,
+      "hint": "填写您的QQ号，插件处理请求时会私聊通知您。"
+    },
         "action": {
           "type": "string",
           "title": "入群邀请处理方式",
