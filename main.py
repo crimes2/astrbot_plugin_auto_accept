@@ -1,8 +1,9 @@
 # astrbot_plugin_auto_approve/main.py
 
 from astrbot.api.star import Context, Star, register
-from astrbot.api.event import filter, AstrMessageEvent, MessageChain # MessageChain 从这里导入 [1]
-from astrbot.api.message_components import Plain # Plain 等消息组件从这里导入 [1]
+# 核心改动在这里：直接导入 on_message，而不是 filter [1]
+from astrbot.api.event import on_message, AstrMessageEvent, MessageChain 
+from astrbot.api.message_components import Plain 
 from astrbot.api import logger
 from types import SimpleNamespace
 from enum import Enum
@@ -45,11 +46,8 @@ class AutoApprovePlugin(Star):
         logger.info(f"好友请求自动处理: {'启用' if self.friend_request_enabled else '禁用'}, 方式: {self.friend_request_action.value}")
         logger.info(f"入群邀请自动处理: {'启用' if self.group_invite_enabled else '禁用'}, 方式: {self.group_invite_action.value}")
 
-    # 使用 @filter.on_message 来捕获所有事件，然后检查 raw_message
-    # re_str=".*" 捕获所有文本消息（可能包含请求事件的载体）
-    # to_me=False 表示不限制是否at机器人 [1]
-    # priority 可以设置高一点，确保优先处理请求事件
-    @filter.on_message(re_str=".*", to_me=False, priority=100) # [1]
+    # 核心改动在这里：直接使用 @on_message 装饰器 [1]
+    @on_message(re_str=".*", to_me=False, priority=100) 
     async def handle_all_events(self, event: AstrMessageEvent):
         # 检查 raw_message 是否包含 go-cqhttp 的请求事件类型
         raw_data = event.raw_message # 这是一个字典，包含原始的go-cqhttp事件数据
@@ -82,10 +80,6 @@ class AutoApprovePlugin(Star):
         """向配置的管理员QQ发送私聊通知"""
         if self.admin_qq_id:
             try:
-                # 注意：AstrBot的send_message需要一个UnifiedMessageOrigin对象
-                # 或者直接使用 context.send_message_to_user(user_id, message_chain)
-                # 假设 context.send_message_to_user 存在，否则需要 event.bot.send_private_msg(self.admin_qq_id, message)
-                # 更通用的方式是使用 Star.context.send_private_message
                 await self.context.send_private_message(self.admin_qq_id, MessageChain([Plain(message)]))
             except Exception as e:
                 logger.error(f"向管理员 ({self.admin_qq_id}) 发送通知失败: {e}")
@@ -103,8 +97,6 @@ class AutoApprovePlugin(Star):
 
         if self.friend_request_action == ActionType.ACCEPT:
             try:
-                # 调用 NapCat/go-cqhttp 的 API 来同意好友请求
-                # event.bot 提供了与当前平台的交互接口
                 await event.bot.set_friend_add_request(flag=flag, approve=True)
                 logger.info(f"{log_prefix}：已自动同意。")
                 await self._send_admin_notification(f"✅ 已自动同意来自 {user_id} 的好友请求：{comment}")
@@ -165,8 +157,5 @@ class AutoApprovePlugin(Star):
             logger.info(f"{log_prefix}：处理方式为 '无操作'，不进行处理。")
 
     async def _handle_group_invite_request(self, event: AstrMessageEvent, raw_data: dict):
-        # 专门处理机器人被邀请入群的情况 (sub_type='invite')
-        # 这里的逻辑与 _handle_group_add_request 类似，因为底层API (set_group_add_request) 相同，
-        # 只是 sub_type 会是 'invite'
         await self._handle_group_add_request(event, raw_data)
 
