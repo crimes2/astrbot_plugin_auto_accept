@@ -1,14 +1,13 @@
 # astrbot_plugin_auto_approve/main.py
 
 from astrbot.api.star import Context, Star, register
-# 核心改动在这里：从 astrbot.event 导入 on_message, MessageChain, Event [1]
-# Event 重新命名为 AstrMessageEvent 以保持上下文一致性
-from astrbot.event import on_message, MessageChain, Event as AstrMessageEvent 
-from astrbot.api.message_components import Plain 
+# 核心改动在这里：从 astrbot.api.event 导入 filter, AstrMessageEvent, MessageChain [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
+from astrbot.api.event import filter, AstrMessageEvent, MessageChain 
+from astrbot.api.message_components import Plain # Plain 等消息组件从这里导入 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
 from astrbot.api import logger
 from types import SimpleNamespace
 from enum import Enum
-import asyncio # 备用，实际可能不需要直接使用
+import asyncio
 
 
 # 配置中将使用的枚举类型
@@ -28,7 +27,7 @@ class ActionType(Enum):
 class AutoApprovePlugin(Star):
     def __init__(self, context: Context, config: SimpleNamespace):
         super().__init__(context)
-        self.context = context # 明确保存 context，方便在异步方法中使用
+        self.context = context 
         self.config = config
 
         self.friend_request_enabled = self.config.friend_request.enabled
@@ -48,11 +47,12 @@ class AutoApprovePlugin(Star):
         logger.info(f"好友请求自动处理: {'启用' if self.friend_request_enabled else '禁用'}, 方式: {self.friend_request_action.value}")
         logger.info(f"入群邀请自动处理: {'启用' if self.group_invite_enabled else '禁用'}, 方式: {self.group_invite_action.value}")
 
-    # 使用 @on_message 装饰器，现在它从正确的路径导入 [1]
-    @on_message(re_str=".*", to_me=False, priority=100) 
-    async def handle_all_events(self, event: AstrMessageEvent): # AstrMessageEvent 对应现在的 Event 导入
-        # 检查 raw_message 是否包含 go-cqhttp 的请求事件类型
-        raw_data = event.raw_message # 这是一个字典，包含原始的go-cqhttp事件数据
+    # 使用 @filter.event_message_type(filter.EventMessageType.ALL) 来捕获所有事件 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
+    # priority 可以设置高一点，确保优先处理请求事件 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
+    @filter.event_message_type(filter.EventMessageType.ALL, priority=100)
+    async def handle_all_events(self, event: AstrMessageEvent):
+        # 检查 raw_message 是否包含 go-cqhttp 的请求事件类型 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
+        raw_data = event.raw_message # 这是一个字典，包含原始的go-cqhttp事件数据 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
         
         # 确保 raw_data 是字典且包含 'post_type' 键
         if not isinstance(raw_data, dict) or 'post_type' not in raw_data:
@@ -65,24 +65,24 @@ class AutoApprovePlugin(Star):
             if request_type == 'friend':
                 logger.info(f"触发好友请求事件：{raw_data}") # 打印原始数据用于调试
                 await self._handle_friend_request(event, raw_data)
-                event.stop_event() # 停止事件传播，防止其他插件或LLM处理 [1]
+                event.stop_event() # 停止事件传播，防止其他插件或LLM处理 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
             elif request_type == 'group':
                 sub_type = raw_data.get('sub_type')
                 if sub_type == 'add': # 用户主动申请入群 (bot作为管理员可以审批)
                      logger.info(f"触发入群申请事件：{raw_data}")
                      await self._handle_group_add_request(event, raw_data)
-                     event.stop_event() # 停止事件传播 [1]
+                     event.stop_event() # 停止事件传播 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
                 elif sub_type == 'invite': # 机器人收到邀请入群 (robot自身被邀请)
                     logger.info(f"触发入群邀请事件：{raw_data}")
                     await self._handle_group_invite_request(event, raw_data)
-                    event.stop_event() # 停止事件传播 [1]
+                    event.stop_event() # 停止事件传播 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
         # 如果是其他您不关心的raw_event类型，则跳过，让其他插件继续处理
 
     async def _send_admin_notification(self, message: str):
         """向配置的管理员QQ发送私聊通知"""
         if self.admin_qq_id:
             try:
-                # 使用 self.context 发送消息
+                # 使用 self.context 发送消息 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
                 await self.context.send_private_message(self.admin_qq_id, MessageChain([Plain(message)]))
             except Exception as e:
                 logger.error(f"向管理员 ({self.admin_qq_id}) 发送通知失败: {e}")
@@ -100,7 +100,7 @@ class AutoApprovePlugin(Star):
 
         if self.friend_request_action == ActionType.ACCEPT:
             try:
-                # 调用 NapCat/go-cqhttp 的 API 来同意好友请求
+                # 调用 NapCat/go-cqhttp 的 API 来同意好友请求 [<sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;https://docs.astrbot.app/dev/star/plugin.html&quot;,&quot;title&quot;:&quot;插件开发 | AstrBot&quot;,&quot;content&quot;:&quot;插件开发 ​ 几行代码开发一个插件！ TIP 推荐使用 VSCode 开发。 需要有一定的 Python 基础。 需要有一定的 Git 使用经验。 欢迎加群 975206796 讨论！！ 开发环境准备 ​ 获取插件模板 ​ 1 打开 AstrBot 插件模板: helloworld 2 点击右上角的 Use this template 3 然后点击 Create new repository。 4&quot;}'>1</sup>](https://docs.astrbot.app/dev/star/plugin.html)
                 await event.bot.set_friend_add_request(flag=flag, approve=True)
                 logger.info(f"{log_prefix}：已自动同意。")
                 await self._send_admin_notification(f"✅ 已自动同意来自 {user_id} 的好友请求：{comment}")
