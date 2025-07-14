@@ -1,12 +1,12 @@
 # astrbot_plugin_auto_approve/main.py
 
 from astrbot.api.star import Context, Star, register
-from astrbot.api.event import filter, AstrMessageEvent, MessageChain # <-- MessageChain 从这里导入 [1]
+from astrbot.api.event import filter, AstrMessageEvent, MessageChain # MessageChain 从这里导入 [1]
 from astrbot.api.message_components import Plain # Plain 等消息组件从这里导入 [1]
 from astrbot.api import logger
 from types import SimpleNamespace
 from enum import Enum
-import asyncio # 通常不需要直接使用，但保留以防万一未来有异步需求
+import asyncio
 
 # 配置中将使用的枚举类型
 class ActionType(Enum):
@@ -25,6 +25,7 @@ class ActionType(Enum):
 class AutoApprovePlugin(Star):
     def __init__(self, context: Context, config: SimpleNamespace):
         super().__init__(context)
+        self.context = context # 明确保存 context，方便在异步方法中使用
         self.config = config
 
         self.friend_request_enabled = self.config.friend_request.enabled
@@ -32,17 +33,31 @@ class AutoApprovePlugin(Star):
         self.group_invite_enabled = self.config.group_invite.enabled
         self.group_invite_action = ActionType(self.config.group_invite.action)
 
+        # 尝试从配置中获取管理员QQ ID，以便发送通知
+        # 这需要在 _conf_schema.json 中添加对应的配置项，例如 "admin_qq": {"type": "integer", "title": "管理员QQ号", "default": 0}
+        self.admin_qq_id = getattr(self.config, 'admin_qq', None) 
+        if self.admin_qq_id:
+            logger.info(f"将向管理员QQ ({self.admin_qq_id}) 发送通知。")
+        else:
+            logger.warning("未配置管理员QQ号，将无法发送处理结果通知。")
+
         logger.info(f"插件 [自动审批] 初始化完成。")
         logger.info(f"好友请求自动处理: {'启用' if self.friend_request_enabled else '禁用'}, 方式: {self.friend_request_action.value}")
         logger.info(f"入群邀请自动处理: {'启用' if self.group_invite_enabled else '禁用'}, 方式: {self.group_invite_action.value}")
 
-    # 使用 on_platform_raw_event 钩子监听原始的平台事件
-    # 这是处理 go-cqhttp (NapCat) 特有请求事件的常见方式
-    @filter.on_platform_raw_event
-    async def handle_raw_event(self, event: AstrMessageEvent):
-        # 确保事件来自 NapCat (go-cqhttp 协议)
-        # 实际检查取决于 AstrBot 如何封装适配器，raw_message是通用方法
+    # 使用 @filter.on_message 来捕获所有事件，然后检查 raw_message
+    # re_str=".*" 捕获所有文本消息（可能包含请求事件的载体）
+    # to_me=False 表示不限制是否at机器人 [1]
+    # priority 可以设置高一点，确保优先处理请求事件
+    @filter.on_message(re_str=".*", to_me=False, priority=100) # [1]
+    async def handle_all_events(self, event: AstrMessageEvent):
+        # 检查 raw_message 是否包含 go-cqhttp 的请求事件类型
         raw_data = event.raw_message # 这是一个字典，包含原始的go-cqhttp事件数据
+        
+        # 确保 raw_data 是字典且包含 'post_type' 键
+        if not isinstance(raw_data, dict) or 'post_type' not in raw_data:
+            return  # 不是预期的 go-cqhttp 事件格式，跳过
+
         post_type = raw_data.get('post_type')
         request_type = raw_data.get('request_type')
 
@@ -61,7 +76,19 @@ class AutoApprovePlugin(Star):
                     logger.info(f"触发入群邀请事件：{raw_data}")
                     await self._handle_group_invite_request(event, raw_data)
                     event.stop_event() # 停止事件传播 [1]
-        # 如果是其他您不关心的raw_event类型，则跳过
+        # 如果是其他您不关心的raw_event类型，则跳过，让其他插件继续处理
+
+    async def _send_admin_notification(self, message: str):
+        """向配置的管理员QQ发送私聊通知"""
+        if self.admin_qq_id:
+            try:
+                # 注意：AstrBot的send_message需要一个UnifiedMessageOrigin对象
+                # 或者直接使用 context.send_message_to_user(user_id, message_chain)
+                # 假设 context.send_message_to_user 存在，否则需要 event.bot.send_private_msg(self.admin_qq_id, message)
+                # 更通用的方式是使用 Star.context.send_private_message
+                await self.context.send_private_message(self.admin_qq_id, MessageChain([Plain(message)]))
+            except Exception as e:
+                logger.error(f"向管理员 ({self.admin_qq_id}) 发送通知失败: {e}")
 
     async def _handle_friend_request(self, event: AstrMessageEvent, raw_data: dict):
         if not self.friend_request_enabled:
@@ -80,16 +107,18 @@ class AutoApprovePlugin(Star):
                 # event.bot 提供了与当前平台的交互接口
                 await event.bot.set_friend_add_request(flag=flag, approve=True)
                 logger.info(f"{log_prefix}：已自动同意。")
-                # 可选：向管理员发送私聊通知，需要您在_conf_schema.json中配置管理员UID
-                # 例如：await self.context.send_private_message(self.config.admin_qq_id, MessageChain([Plain(f"已自动同意来自 {user_id} 的好友请求。")]))
+                await self._send_admin_notification(f"✅ 已自动同意来自 {user_id} 的好友请求：{comment}")
             except Exception as e:
                 logger.error(f"{log_prefix}：自动同意失败，错误: {e}")
+                await self._send_admin_notification(f"❌ 自动同意来自 {user_id} 的好友请求失败：{e}")
         elif self.friend_request_action == ActionType.REJECT:
             try:
                 await event.bot.set_friend_add_request(flag=flag, approve=False, remark='插件自动拒绝。')
                 logger.info(f"{log_prefix}：已自动拒绝。")
+                await self._send_admin_notification(f"🚫 已自动拒绝来自 {user_id} 的好友请求：{comment}")
             except Exception as e:
                 logger.error(f"{log_prefix}：自动拒绝失败，错误: {e}")
+                await self._send_admin_notification(f"❌ 自动拒绝来自 {user_id} 的好友请求失败：{e}")
         else: # IGNORE
             logger.info(f"{log_prefix}：处理方式为 '无操作'，不进行处理。")
 
@@ -115,9 +144,10 @@ class AutoApprovePlugin(Star):
                     approve=True
                 )
                 logger.info(f"{log_prefix}：已自动同意。")
-                # 可选：向管理员发送私聊通知
+                await self._send_admin_notification(f"✅ 已自动同意用户 {user_id} 加入群 {group_id} 的请求：{comment}")
             except Exception as e:
                 logger.error(f"{log_prefix}：自动同意失败，错误: {e}")
+                await self._send_admin_notification(f"❌ 自动同意用户 {user_id} 加入群 {group_id} 失败：{e}")
         elif self.group_invite_action == ActionType.REJECT:
             try:
                 await event.bot.set_group_add_request(
@@ -127,16 +157,16 @@ class AutoApprovePlugin(Star):
                     reason=f'插件自动拒绝: {comment}'
                 )
                 logger.info(f"{log_prefix}：已自动拒绝。")
+                await self._send_admin_notification(f"🚫 已自动拒绝用户 {user_id} 加入群 {group_id} 的请求：{comment}")
             except Exception as e:
                 logger.error(f"{log_prefix}：自动拒绝失败，错误: {e}")
+                await self._send_admin_notification(f"❌ 自动拒绝用户 {user_id} 加入群 {group_id} 失败：{e}")
         else: # IGNORE
             logger.info(f"{log_prefix}：处理方式为 '无操作'，不进行处理。")
 
     async def _handle_group_invite_request(self, event: AstrMessageEvent, raw_data: dict):
         # 专门处理机器人被邀请入群的情况 (sub_type='invite')
-        # 在go-cqhttp中，机器人被邀请入群也属于request/group但可能需要不同的处理参数
         # 这里的逻辑与 _handle_group_add_request 类似，因为底层API (set_group_add_request) 相同，
         # 只是 sub_type 会是 'invite'
         await self._handle_group_add_request(event, raw_data)
-
 
