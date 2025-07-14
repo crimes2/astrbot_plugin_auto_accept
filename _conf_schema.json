@@ -1,59 +1,52 @@
 {
-  "type": "object",
-  "properties": {
-    "friend_request": {
-      "type": "object",
-      "title": "好友请求处理",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "title": "启用自动处理好友请求",
-          "default": false,
-          "hint": "开启后，插件将根据下方设置自动处理好友请求"
+    "title": "自动通过好友、群请求",
+    "description": "自动处理QQ平台的好友请求和入群邀请，可配置接受或拒绝。",
+    "type": "object",
+    "properties": {
+        "friend_request": {
+            "type": "object",
+            "title": "好友请求设置",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "title": "启用自动处理好友请求",
+                    "default": false
+                },
+                "action": {
+                    "type": "string",
+                    "title": "处理方式",
+                    "description": "accept (同意), reject (拒绝), ignore (忽略)",
+                    "enum": ["accept", "reject", "ignore"],
+                    "default": "ignore"
+                }
+            },
+            "required": ["enabled", "action"]
         },
-        "action": {
-          "type": "string",
-          "title": "好友请求处理方式",
-          "enum": ["ignore", "accept", "reject"],
-          "default": "ignore",
-          "options": [
-            {"label": "无操作 (留待人工判断)", "value": "ignore"},
-            {"label": "自动同意", "value": "accept"},
-            {"label": "自动拒绝", "value": "reject"}
-          ],
-          "hint": "选择如何自动处理好友请求"
-        }
-      }
-    },
-    "group_invite": {
-      "type": "object",
-      "title": "入群邀请处理",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "title": "启用自动处理入群邀请",
-          "default": false,
-          "hint": "开启后，插件将根据下方设置自动处理入群邀请"
+        "group_invite": {
+            "type": "object",
+            "title": "入群邀请/申请设置",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "title": "启用自动处理入群邀请/申请",
+                    "default": false
+                },
+                "action": {
+                    "type": "string",
+                    "title": "处理方式",
+                    "description": "accept (同意), reject (拒绝), ignore (忽略)",
+                    "enum": ["accept", "reject", "ignore"],
+                    "default": "ignore"
+                }
+            },
+            "required": ["enabled", "action"]
         },
         "admin_qq": {
-      "type": "integer",
-      "title": "管理员QQ号 (用于接收通知)",
-      "default": 0,
-      "hint": "填写您的QQ号，插件处理请求时会私聊通知您。"
-    },
-        "action": {
-          "type": "string",
-          "title": "入群邀请处理方式",
-          "enum": ["ignore", "accept", "reject"],
-          "default": "ignore",
-          "options": [
-            {"label": "无操作 (留待人工判断)", "value": "ignore"},
-            {"label": "自动同意", "value": "accept"},
-            {"label": "自动拒绝", "value": "reject"}
-          ],
-          "hint": "选择如何自动处理入群邀请"
+            "type": "integer",
+            "title": "管理员QQ号 (用于通知)",
+            "description": "如果配置，处理结果会私聊通知此QQ号，0表示不通知。",
+            "default": 0
         }
-      }
-    }
-  }
+    },
+    "required": ["friend_request", "group_invite"]
 }
