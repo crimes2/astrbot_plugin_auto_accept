@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "properties": {
+    "friend_request": {
+      "type": "object",
+      "title": "好友请求处理",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "启用自动处理好友请求",
+          "default": false,
+          "hint": "开启后，插件将根据下方设置自动处理好友请求"
+        },
+        "action": {
+          "type": "string",
+          "title": "好友请求处理方式",
+          "enum": ["ignore", "accept", "reject"],
+          "default": "ignore",
+          "options": [
+            {"label": "无操作 (留待人工判断)", "value": "ignore"},
+            {"label": "自动同意", "value": "accept"},
+            {"label": "自动拒绝", "value": "reject"}
+          ],
+          "hint": "选择如何自动处理好友请求"
+        }
+      }
+    },
+    "group_invite": {
+      "type": "object",
+      "title": "入群邀请处理",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "启用自动处理入群邀请",
+          "default": false,
+          "hint": "开启后，插件将根据下方设置自动处理入群邀请"
+        },
+        "action": {
+          "type": "string",
+          "title": "入群邀请处理方式",
+          "enum": ["ignore", "accept", "reject"],
+          "default": "ignore",
+          "options": [
+            {"label": "无操作 (留待人工判断)", "value": "ignore"},
+            {"label": "自动同意", "value": "accept"},
+            {"label": "自动拒绝", "value": "reject"}
+          ],
+          "hint": "选择如何自动处理入群邀请"
+        }
+      }
+    }
+  }
+}
