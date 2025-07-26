@@ -1,52 +1,81 @@
 {
-    "title": "自动通过好友、群请求",
-    "description": "自动处理QQ平台的好友请求和入群邀请，可配置接受或拒绝。",
-    "type": "object",
-    "properties": {
-        "friend_request": {
-            "type": "object",
-            "title": "好友请求设置",
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "title": "启用自动处理好友请求",
-                    "default": false
-                },
-                "action": {
-                    "type": "string",
-                    "title": "处理方式",
-                    "description": "accept (同意), reject (拒绝), ignore (忽略)",
-                    "enum": ["accept", "reject", "ignore"],
-                    "default": "ignore"
-                }
-            },
-            "required": ["enabled", "action"]
-        },
-        "group_invite": {
-            "type": "object",
-            "title": "入群邀请/申请设置",
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "title": "启用自动处理入群邀请/申请",
-                    "default": false
-                },
-                "action": {
-                    "type": "string",
-                    "title": "处理方式",
-                    "description": "accept (同意), reject (拒绝), ignore (忽略)",
-                    "enum": ["accept", "reject", "ignore"],
-                    "default": "ignore"
-                }
-            },
-            "required": ["enabled", "action"]
-        },
-        "admin_qq": {
-            "type": "integer",
-            "title": "管理员QQ号 (用于通知)",
-            "description": "如果配置，处理结果会私聊通知此QQ号，0表示不通知。",
-            "default": 0
-        }
+    "friend_request_mode": {
+        "description": "好友请求处理模式",
+        "type": "string",
+        "default": "ignore",
+        "enum": ["accept", "reject", "ignore"],
+        "hint": "accept: 全部同意, reject: 全部拒绝, ignore: 忽略(管理员除外)"
     },
-    "required": ["friend_request", "group_invite"]
+    "group_invite_mode": {
+        "description": "群邀请处理模式",
+        "type": "string",
+        "default": "ignore",
+        "enum": ["accept", "reject", "ignore"],
+        "hint": "accept: 全部同意, reject: 全部拒绝, ignore: 忽略(管理员邀请及特殊规则除外)"
+    },
+    "group_blacklist_enabled": {
+        "description": "【拉黑】是否启用邀请者黑名单功能",
+        "type": "bool",
+        "default": true
+    },
+    "group_blacklist_user_ids": {
+        "description": "【拉黑】邀请者黑名单用户ID列表",
+        "type": "list",
+        "default": []
+    },
+    "group_blacklist_rejection_message": {
+        "description": "【拉黑】拒绝黑名单用户邀请时的理由",
+        "type": "string",
+        "default": "抱歉，您在我的邀请黑名单中。"
+    },
+    "exclusive_members_enabled": {
+        "description": "【互斥】是否启用互斥成员检查",
+        "type": "bool",
+        "default": true
+    },
+    "exclusive_members_user_ids": {
+        "description": "【互斥】互斥成员用户ID列表",
+        "type": "list",
+        "default": []
+    },
+    "exclusive_members_exit_message": {
+        "description": "【互斥】检测到互斥成员时退群的理由",
+        "type": "string",
+        "default": "抱歉，我不能和TA在同一个群里。"
+    },
+    "min_group_size_enabled": {
+        "description": "【群规模】是否启用最小群人数检查",
+        "type": "bool",
+        "default": false
+    },
+    "min_group_size_count": {
+        "description": "【群规模】允许加入的最小群成员数",
+        "type": "int",
+        "default": 10
+    },
+    "min_group_size_rejection_message": {
+        "description": "【群规模】因群太小而拒绝邀请的理由",
+        "type": "string",
+        "default": "抱歉，这个群人太少了。"
+    },
+    "welcome_message_enabled": {
+        "description": "【欢迎】是否启用自动发送入群欢迎语",
+        "type": "bool",
+        "default": true
+    },
+    "welcome_message_message": {
+        "description": "【欢迎】入群欢迎语内容",
+        "type": "string",
+        "default": "大家好，我来啦！"
+    },
+    "auto_leave_if_muted_enabled": {
+        "description": "【禁言】是否启用被禁言时间过长自动退群",
+        "type": "bool",
+        "default": true
+    },
+    "auto_leave_if_muted_duration_hours": {
+        "description": "【禁言】被禁言超过多少小时后自动退群",
+        "type": "int",
+        "default": 24
+    }
 }
