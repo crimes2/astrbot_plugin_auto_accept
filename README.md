@@ -9,7 +9,7 @@ _✨ 智能好友与群聊自动化管家 ✨_
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![AstrBot](https://img.shields.io/badge/AstrBot-3.5%2B-orange.svg)](https://github.com/AstrBotDevs/AstrBot)
-[![GitHub](https://img.shields.io/badge/作者-crimes2)]([https://github.com/Lumine-Inc](https://github.com/crimes2))
+[![GitHub](https://img.shields.io/badge/作者-crimes2)]([https://github.com/Lumine-Inc](https://github.com/crimes2)
 
 </div>
 
