@@ -40,47 +40,54 @@ git clone https://github.com/Lumine-Inc/astrbot-plugin-auto-handler
 
 # 重启 AstrBot 服务
 systemctl restart astrbot
+```
+
+## ⚙️ 配置
+
+所有功能均可通过 AstrBot 的 WebUI 面板进行配置，路径：`插件管理` -> `astrbot_plugin_auto_handler` -> `操作` -> `插件配置`。
+
+**配置项说明：**
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| :--- | :---: | :---: | :--- |
+| `friend_request_mode` | `string` | `ignore` | 好友请求处理模式 (accept: 同意, reject: 拒绝, ignore: 忽略)。 |
+| `group_invite_mode` | `string` | `ignore` | 群邀请处理模式 (除特殊规则外)。 |
+| `group_blacklist_enabled` | `bool` | `true` | 是否启用邀请者黑名单功能。 |
+| `group_blacklist_user_ids`| `list` | `[]` | 黑名单QQ号列表。 |
+| `group_blacklist_rejection_message` | `string` | `...` | 拒绝黑名单邀请时的理由。 |
+| `exclusive_members_enabled` | `bool` | `true` | 是否启用互斥成员检查。 |
+| `exclusive_members_user_ids`| `list` | `[]` | 互斥成员QQ号列表。 |
+| `exclusive_members_exit_message` | `string` | `...` | 检测到互斥成员时的退群/拒绝理由。 |
+| `min_group_size_enabled`| `bool` | `false` | 是否启用最小群人数检查。 |
+| `min_group_size_count` | `int` | `10` | 允许加入的最小群成员数。 |
+| `min_group_size_rejection_message` | `string` | `...` | 因群太小而拒绝邀请的理由。 |
+| `welcome_message_enabled` | `bool` | `true` | 是否在同意入群后发送欢迎语。 |
+| `welcome_message_message` | `string` | `大家好...` | 入群欢迎语的具体内容。 |
+| `auto_leave_if_muted_enabled` | `bool` | `true` | **(当前版本因兼容性暂未生效)** 是否启用被禁言自动退群。 |
+| `auto_leave_if_muted_duration_hours` | `int` | `24` | **(当前版本因兼容性暂未生效)** 被禁言超过多少小时后退群。 |
 
 
-⚙️ 配置
-所有功能均可通过 AstrBot 的 WebUI 面板进行配置，路径：插件管理 -> astrbot_plugin_auto_handler -> 操作 -> 插件配置。
+## ⌨️ 使用说明
 
-配置项说明：
+本插件**无任何指令**，所有功能均为全自动后台运行。您只需在配置面板中完成设置，插件便会根据您的规则忠实地执行任务。
 
-配置项	类型	默认值	说明
-friend_request_mode	string	ignore	好友请求处理模式 (accept: 同意, reject: 拒绝, ignore: 忽略)。
-group_invite_mode	string	ignore	群邀请处理模式 (除特殊规则外)。
-group_blacklist_enabled	bool	true	是否启用邀请者黑名单功能。
-group_blacklist_user_ids	list	[]	黑名单QQ号列表。
-group_blacklist_rejection_message	string	...	拒绝黑名单邀请时的理由。
-exclusive_members_enabled	bool	true	是否启用互斥成员检查。
-exclusive_members_user_ids	list	[]	互斥成员QQ号列表。
-exclusive_members_exit_message	string	...	检测到互斥成员时的退群/拒绝理由。
-min_group_size_enabled	bool	false	是否启用最小群人数检查。
-min_group_size_count	int	10	允许加入的最小群成员数。
-min_group_size_rejection_message	string	...	因群太小而拒绝邀请的理由。
-welcome_message_enabled	bool	true	是否在同意入群后发送欢迎语。
-welcome_message_message	string	大家好...	入群欢迎语的具体内容。
-auto_leave_if_muted_enabled	bool	true	(当前版本因兼容性暂未生效) 是否启用被禁言自动退群。
-auto_leave_if_muted_duration_hours	int	24	(当前版本因兼容性暂未生效) 被禁言超过多少小时后退群。
-⌨️ 使用说明
-本插件无任何指令，所有功能均为全自动后台运行。您只需在配置面板中完成设置，插件便会根据您的规则忠实地执行任务。
+## 🤝 TODO
 
-🤝 TODO
- 自动处理好友请求
- 基于多重规则（管理员、黑名单、互斥成员、群规模）自动处理群邀请
- 自动将被踢操作者加入黑名单
- 重新启用并优化“被禁言自动退群”功能（待 AstrBot 核心版本更新支持）
- 增加邀请者白名单模式
- 增加指令用于临时开启/关闭/切换处理模式
- 为所有自动化操作增加详细的日志推送，方便主人监控
-👥 贡献指南
+- [x] 自动处理好友请求
+- [x] 基于多重规则（管理员、黑名单、互斥成员、群规模）自动处理群邀请
+- [x] 自动将被踢操作者加入黑名单
+- [ ] 重新启用并优化“被禁言自动退群”功能（待 AstrBot 核心版本更新支持）
+- [ ] 增加邀请者白名单模式
+- [ ] 增加指令用于临时开启/关闭/切换处理模式
+- [ ] 为所有自动化操作增加详细的日志推送，方便主人监控
+
+## 👥 贡献指南
+
 我们欢迎任何形式的贡献和建议，让这个插件变得更好！
+- 🌟 **Star** 这个项目！
+- 🐛 通过 [Issues](https://github.com/Lumine-Inc/astrbot-plugin-auto-handler/issues) 提交 **Bug报告**。
+- 💡 通过 [Issues](https://github.com/Lumine-Inc/astrbot-plugin-auto-handler/issues) 提出 **新功能建议**。
+- 🔧 提交 **Pull Request** 帮助我们改进代码。
 
-🌟 Star 这个项目！
-🐛 通过 Issues 提交 Bug报告。
-💡 通过 Issues 提出 新功能建议。
-🔧 提交 Pull Request 帮助我们改进代码。
-
-📌 注意事项
-如有任何问题，欢迎通过 GitHub Issues 进行反馈。
+## 📌 注意事项
+- 如有任何问题，欢迎通过 GitHub Issues 进行反馈。
