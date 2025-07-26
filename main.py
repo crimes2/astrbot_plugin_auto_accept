@@ -1,210 +1,187 @@
-# astrbot_plugin_auto_accept/main.py
-
-from astrbot.api.star import Context, Star, register
-# 导入 filter, AstrMessageEvent, MessageChain 
-from astrbot.api.event import filter, AstrMessageEvent, MessageChain 
-from astrbot.api.message_components import Plain 
-from astrbot.api import logger
-from types import SimpleNamespace
-from enum import Enum
+import json
+import time
 import asyncio
+from pathlib import Path
 
+from astrbot.api.event import filter
+from astrbot.api.star import Context, Star, register
+from astrbot.core.config.astrbot_config import AstrBotConfig
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
+from astrbot import logger
 
-# 配置中将使用的枚举类型
-class ActionType(Enum):
-    IGNORE = "ignore"
-    ACCEPT = "accept"
-    REJECT = "reject"
+data_dir = Path("data/plugin_data/astrbot_plugin_auto_handler")
+data_dir.mkdir(parents=True, exist_ok=True)
+muted_groups_file = data_dir / "muted_groups.json"
 
+def load_muted_groups():
+    if not muted_groups_file.exists():
+        return {}
+    try:
+        with open(muted_groups_file, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+def save_muted_groups(data):
+    with open(muted_groups_file, 'w') as f:
+        json.dump(data, f, indent=4)
 
 @register(
-    "astrbot_plugin_auto_approve",
-    "你的名字",
-    "自动处理NapCat平台的好友请求和入群邀请",
-    "1.0.0",
-    "你的插件仓库URL或其他信息"
+    "astrbot_plugin_auto_handler",
+    "Lumine",
+    "自动处理好友和群邀请，最终稳定版",
+    "3.5.22-final-stable",
+    "https://github.com/Lumine-Inc/AstrBot-Python"
 )
-class AutoApprovePlugin(Star):
-    def __init__(self, context: Context, config: SimpleNamespace):
+class AutoHandler(Star):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.context = context 
         self.config = config
-
-        self.friend_request_enabled = self.config.friend_request.enabled
-        self.friend_request_action = ActionType(self.config.friend_request.action)
-        self.group_invite_enabled = self.config.group_invite.enabled
-        self.group_invite_action = ActionType(self.config.group_invite.action)
-
-        self.admin_qq_id = getattr(self.config, 'admin_qq', None) 
-        if self.admin_qq_id:
-            logger.info(f"将向管理员QQ ({self.admin_qq_id}) 发送通知。")
-        else:
-            logger.warning("未配置管理员QQ号，将无法发送处理结果通知。")
-
-        logger.info(f"插件 [自动审批] 初始化完成。")
-        logger.info(f"好友请求自动处理: {'启用' if self.friend_request_enabled else '禁用'}, 方式: {self.friend_request_action.value}")
-        logger.info(f"入群邀请自动处理: {'启用' if self.group_invite_enabled else '禁用'}, 方式: {self.group_invite_action.value}")
-
-    # 使用 @filter.event_message_type(filter.EventMessageType.ALL) 来捕获所有事件
-    # 根据最新的错误，现在我们将函数参数明确为 Context
-    @filter.event_message_type(filter.EventMessageType.ALL, priority=100)
-    async def handle_all_events(self, ctx: Context): # 将参数名改为 ctx 并指定类型为 Context
-        # 尝试从 Context 中获取实际的事件对象或原始数据
-        # 这里的访问方式是推测，目的是为了兼容多种可能的内部实现
-        raw_data = None
-        event_obj_for_stop = None # 用于调用 stop_event() 的实际事件对象
-
-        # 优先级：
-        # 1. 直接从 ctx.event 获取 AstrMessageEvent 及其 raw_message
-        if hasattr(ctx, 'event') and isinstance(ctx.event, AstrMessageEvent) and hasattr(ctx.event, 'raw_message'):
-            event_obj_for_stop = ctx.event
-            raw_data = event_obj_for_stop.raw_message
-        # 2. 如果 ctx.event 不是 AstrMessageEvent，或者没有 raw_message，尝试 ctx.raw_event
-        elif hasattr(ctx, 'raw_event'): # 假设 Context 直接持有原始事件字典
-            raw_data = ctx.raw_event
-        # 3. 这种情况下，如果 EventMessageType.ALL 收到的确实是 Context，但原始事件数据不在以上位置，则跳过
+        self.admins_id: list[str] = context.get_config().get("admins", [])
+        self.port_instance = None
         
-        if raw_data is None:
-            # 如果无法获取原始数据，可能是非预期的事件类型，跳过处理
-            logger.debug(f"无法从 Context 中获取原始事件数据。Context 属性: {dir(ctx)}")
-            return # 跳过，不再处理
+        # --- 由于旧版本兼容性问题，暂时禁用定时任务功能 ---
+        # self.scheduler_job = None
+        # try:
+        #     # 这一行在旧版本中会报错 ModuleNotFoundError
+        #     from astrbot.core.scheduler import get_scheduler
+        #     scheduler = get_scheduler()
+        #     self.scheduler_job = scheduler.add_job(self.check_muted_status, 'interval', minutes=10)
+        #     logger.info("[AutoHandler] 插件已加载，定时任务已启动。")
+        # except ImportError:
+        #     logger.warning("[AutoHandler] 插件已加载，但定时任务功能因版本不兼容已禁用。")
+        logger.info("[AutoHandler] 插件已加载。")
 
-        # 确保 raw_data 是字典
-        if not isinstance(raw_data, dict):
-            # 如果 raw_data 不是字典，但可能是某种包含原始数据的对象（例如 SimpleNamespace），尝试转换
-            if hasattr(raw_data, '__dict__'):
-                raw_data = raw_data.__dict__
-            else:
-                logger.warning(f"获取到的原始事件数据不是字典类型，跳过：{type(raw_data)}")
-                return
+    
+    async def destroy(self):
+        # if self.scheduler_job:
+        #     self.scheduler_job.remove()
+        #     logger.info("[AutoHandler] 插件已卸载，定时任务已停止。")
+        pass
+
+    @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
+    async def event_handler(self, event: AiocqhttpMessageEvent):
+        if self.port_instance is None:
+            self.port_instance = event.bot
+            logger.info("[AutoHandler] 成功获取并保存机器人实例。")
+
+        raw_message = getattr(event.message_obj, "raw_message", None)
+        if not isinstance(raw_message, dict):
+            return
         
-        if 'post_type' not in raw_data:
-            # logger.debug(f"Received non-Go-CQHttp event or incomplete data: {raw_data}") # 更加详细的日志
-            return # 不是预期的 Go-CQHttp 事件格式，跳过
+        post_type = raw_message.get("post_type")
+        if post_type == "request":
+            await self.handle_request(event, raw_message)
+        elif post_type == "notice":
+            await self.handle_notice(event, raw_message)
 
-        post_type = raw_data.get('post_type')
-        request_type = raw_data.get('request_type')
+    async def handle_request(self, event: AiocqhttpMessageEvent, raw: dict):
+        request_type = raw.get("request_type")
+        user_id = str(raw.get("user_id"))
+        comment = raw.get('comment', '')
+        flag = raw.get("flag")
+        port = event.bot
 
-        handled = False
-        if post_type == 'request':
-            if request_type == 'friend':
-                logger.info(f"触发好友请求事件：{raw_data}")
-                # 将 ctx 和 raw_data 传递给处理函数
-                await self._handle_friend_request(ctx, raw_data) 
-                handled = True
-            elif request_type == 'group':
-                sub_type = raw_data.get('sub_type')
-                if sub_type == 'add':
-                     logger.info(f"触发入群申请事件：{raw_data}")
-                     await self._handle_group_add_request(ctx, raw_data)
-                     handled = True
-                elif sub_type == 'invite':
-                    logger.info(f"触发入群邀请事件：{raw_data}")
-                    await self._handle_group_invite_request(ctx, raw_data)
-                    handled = True
+        if request_type == "friend":
+            await self.handle_friend_request(port, user_id, comment, flag)
+        elif request_type == "group" and raw.get("sub_type") == 'invite':
+            group_id = raw.get("group_id")
+            await self.handle_group_invite(port, user_id, group_id, flag)
+
+    async def handle_friend_request(self, port, user_id, comment, flag):
+        mode = self.config.get("friend_request_mode")
+        if str(user_id) in self.admins_id:
+            try: await port.set_friend_add_request(flag=flag, approve=True)
+            except Exception as e: logger.error(f"[AutoHandler] 同意好友失败: {e}")
+        elif mode == "accept":
+            try: await port.set_friend_add_request(flag=flag, approve=True)
+            except Exception as e: logger.error(f"[AutoHandler] 同意好友失败: {e}")
+        elif mode == "reject":
+            try: await port.set_friend_add_request(flag=flag, approve=False)
+            except Exception as e: logger.error(f"[AutoHandler] 拒绝好友失败: {e}")
+
+    async def handle_group_invite(self, port, user_id, group_id, flag):
+        if str(user_id) in self.admins_id:
+            await port.set_group_add_request(flag=flag, sub_type="invite", approve=True)
+            return
         
-        if handled:
-            # 停止事件传播
-            if event_obj_for_stop and hasattr(event_obj_for_stop, 'stop_event'):
-                event_obj_for_stop.stop_event()
-            elif hasattr(ctx, 'stop_event'): # 如果 Context 也提供了 stop_event 方法
-                ctx.stop_event()
-            else:
-                logger.warning("无法停止事件传播，可能已处理的事件会继续传递。")
-
-
-    async def _send_admin_notification(self, message: str):
-        """向配置的管理员QQ发送私聊通知"""
-        if self.admin_qq_id:
-            try:
-                await self.context.send_private_message(self.admin_qq_id, MessageChain([Plain(message)]))
-            except Exception as e:
-                logger.error(f"向管理员 ({self.admin_qq_id}) 发送通知失败: {e}")
-
-    # 将参数 event_or_ctx 更改为 ctx，因为我们现在明确它是一个 Context 对象
-    async def _handle_friend_request(self, ctx: Context, raw_data: dict):
-        # 从 Context 获取 bot 实例
-        bot_instance = ctx.bot
-        if bot_instance is None:
-            logger.error("无法获取 Bot 实例来处理好友请求。")
+        if self.config.get("group_blacklist_enabled") and str(user_id) in self.config.get("group_blacklist_user_ids", []):
+            await port.set_group_add_request(flag=flag, sub_type="invite", approve=False, reason=self.config.get("group_blacklist_rejection_message"))
             return
 
-        if not self.friend_request_enabled:
-            logger.info(f"好友请求自动处理未启用，忽略来自 {raw_data.get('user_id')} 的请求。")
-            return
-
-        user_id = raw_data.get('user_id')
-        flag = raw_data.get('flag') 
-        comment = raw_data.get('comment', '无')
-
-        log_prefix = f"好友请求 (用户: {user_id}, 申请: '{comment}')"
-
-        if self.friend_request_action == ActionType.ACCEPT:
+        if self.config.get("exclusive_members_enabled"):
             try:
-                await bot_instance.set_friend_add_request(flag=flag, approve=True)
-                logger.info(f"{log_prefix}：已自动同意。")
-                await self._send_admin_notification(f"✅ 已自动同意来自 {user_id} 的好友请求：{comment}")
-            except Exception as e:
-                logger.error(f"{log_prefix}：自动同意失败，错误: {e}")
-                await self._send_admin_notification(f"❌ 自动同意来自 {user_id} 的好友请求失败：{e}")
-        elif self.friend_request_action == ActionType.REJECT:
+                group_members = await port.get_group_member_list(group_id=group_id)
+                member_ids = {str(m['user_id']) for m in group_members}
+                exclusive_ids = set(self.config.get("exclusive_members_user_ids", []))
+                if not member_ids.isdisjoint(exclusive_ids):
+                    await port.set_group_add_request(flag=flag, sub_type="invite", approve=False, reason=self.config.get("exclusive_members_exit_message"))
+                    return
+            except Exception: pass
+
+        if self.config.get("min_group_size_enabled"):
             try:
-                await bot_instance.set_friend_add_request(flag=flag, approve=False, remark='插件自动拒绝。')
-                logger.info(f"{log_prefix}：已自动拒绝。")
-                await self._send_admin_notification(f"🚫 已自动拒绝来自 {user_id} 的好友请求：{comment}")
-            except Exception as e:
-                logger.error(f"{log_prefix}：自动拒绝失败，错误: {e}")
-                await self._send_admin_notification(f"❌ 自动拒绝来自 {user_id} 的好友请求失败：{e}")
-        else: # IGNORE
-            logger.info(f"{log_prefix}：处理方式为 '无操作'，不进行处理。")
+                group_info = await port.get_group_info(group_id=group_id)
+                if group_info['member_count'] < self.config.get("min_group_size_count"):
+                    await port.set_group_add_request(flag=flag, sub_type="invite", approve=False, reason=self.config.get("min_group_size_rejection_message"))
+                    return
+            except Exception: pass
 
-    # Group add request and invite use similar logic
-    async def _handle_group_add_request(self, ctx: Context, raw_data: dict):
-        bot_instance = ctx.bot
-        if bot_instance is None:
-            logger.error("无法获取 Bot 实例来处理入群请求。")
-            return
+        mode = self.config.get("group_invite_mode")
+        if mode == "accept":
+            await port.set_group_add_request(flag=flag, sub_type="invite", approve=True)
+            if self.config.get("welcome_message_enabled"):
+                await asyncio.sleep(2)
+                await port.send_group_msg(group_id=group_id, message=self.config.get("welcome_message_message"))
+        elif mode == "reject":
+            await port.set_group_add_request(flag=flag, sub_type="invite", approve=False)
 
-        if not self.group_invite_enabled:
-            logger.info(f"入群申请/邀请自动处理未启用，忽略来自 {raw_data.get('user_id')} 加入群 {raw_data.get('group_id')} 的请求。")
-            return
+    async def handle_notice(self, event: AiocqhttpMessageEvent, raw: dict):
+        notice_type = raw.get("notice_type")
+        
+        if notice_type == 'group_decrease' and raw.get("sub_type") == 'kick_me':
+            if self.config.get("group_blacklist_enabled"):
+                operator_id = str(raw.get("operator_id"))
+                current_blacklist = self.config.get("group_blacklist_user_ids", [])
+                if operator_id not in current_blacklist:
+                    current_blacklist.append(operator_id)
+                    self.config.set("group_blacklist_user_ids", current_blacklist)
+                    self.config.save_config()
 
-        group_id = raw_data.get('group_id')
-        user_id = raw_data.get('user_id')
-        flag = raw_data.get('flag')
-        sub_type = raw_data.get('sub_type')
-        comment = raw_data.get('comment', '无')
+        # --- 由于定时任务禁用，此部分代码不会被 check_muted_status 调用，但保留事件监听逻辑 ---
+        if notice_type == 'group_ban' and self.config.get("auto_leave_if_muted_enabled"):
+            if raw.get("user_id") == raw.get("self_id") and raw.get("duration") > 0:
+                group_id = str(raw.get("group_id"))
+                muted_groups = load_muted_groups()
+                muted_groups[group_id] = time.time() + raw.get("duration")
+                save_muted_groups(muted_groups)
 
-        log_prefix = f"入群申请/邀请 (群: {group_id}, 用户: {user_id}, 理由: '{comment}')"
-
-        if self.group_invite_action == ActionType.ACCEPT:
-            try:
-                await bot_instance.set_group_add_request(
-                    flag=flag,
-                    sub_type=sub_type,
-                    approve=True
-                )
-                logger.info(f"{log_prefix}：已自动同意。")
-                await self._send_admin_notification(f"✅ 已自动同意用户 {user_id} 加入群 {group_id} 的请求：{comment}")
-            except Exception as e:
-                logger.error(f"{log_prefix}：自动同意失败，错误: {e}")
-                await self._send_admin_notification(f"❌ 自动同意用户 {user_id} 加入群 {group_id} 失败：{e}")
-        elif self.group_invite_action == ActionType.REJECT:
-            try:
-                await bot_instance.set_group_add_request(
-                    flag=flag,
-                    sub_type=sub_type,
-                    approve=False,
-                    reason=f'插件自动拒绝: {comment}'
-                )
-                logger.info(f"{log_prefix}：已自动拒绝。")
-                await self._send_admin_notification(f"🚫 已自动拒绝用户 {user_id} 加入群 {group_id} 的请求：{comment}")
-            except Exception as e:
-                logger.error(f"{log_prefix}：自动拒绝失败，错误: {e}")
-                await self._send_admin_notification(f"❌ 自动拒绝用户 {user_id} 加入群 {group_id} 失败：{e}")
-        else: # IGNORE
-            logger.info(f"{log_prefix}：处理方式为 '无操作'，不进行处理。")
-
-    async def _handle_group_invite_request(self, ctx: Context, raw_data: dict):
-        await self._handle_group_add_request(ctx, raw_data)
-
+    # --- 由于旧版本兼容性问题，暂时禁用此功能 ---
+    # async def check_muted_status(self):
+    #     if not self.config.get("auto_leave_if_muted_enabled"):
+    #         return
+    #     
+    #     if self.port_instance is None:
+    #         logger.warning("[AutoHandler] 尚未收到任何事件，无法获取机器人实例，本次定时任务跳过。")
+    #         return
+    #     
+    #     port = self.port_instance
+    #     muted_groups = load_muted_groups()
+    #     current_time = time.time()
+    #     groups_to_leave = []
+    #     
+    #     for group_id, unmute_time in list(muted_groups.items()):
+    #         if current_time > unmute_time:
+    #             del muted_groups[group_id]
+    #         elif (unmute_time - current_time) / 3600 > self.config.get("auto_leave_if_muted_duration_hours"):
+    #             groups_to_leave.append(group_id)
+    #     
+    #     if groups_to_leave:
+    #         try:
+    #             for group_id in groups_to_leave:
+    #                 await port.set_group_leave(group_id=int(group_id))
+    #                 del muted_groups[group_id]
+    #         except Exception as e:
+    #             logger.error(f"[AutoHandler] 定时退群失败: {e}")
+    #
+    #     save_muted_groups(muted_groups)
