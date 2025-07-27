@@ -1,6 +1,6 @@
 name: astrbot_plugin_auto_handler
 desc: 智能自动化管家, 集成高级监控与手动管理工具
 help: 自动处理好友/群聊请求，提供/抽查等多种管理指令。
-version: v2.0.0-merged
+version: v2.0.1
 author: crimes2
 repo: https://github.com/crimes2/astrbot_plugin_auto_handler
