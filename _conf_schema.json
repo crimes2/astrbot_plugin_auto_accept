@@ -2,80 +2,65 @@
     "friend_request_mode": {
         "description": "好友请求处理模式",
         "type": "string",
-        "default": "ignore",
-        "enum": ["accept", "reject", "ignore"],
-        "hint": "accept: 全部同意, reject: 全部拒绝, ignore: 忽略(管理员除外)"
+        "default": "manual",
+        "enum": ["accept", "reject", "manual"],
+        "hint": "accept:全部同意, reject:全部拒绝, manual:将请求私发给所有管理员审批"
     },
     "group_invite_mode": {
         "description": "群邀请处理模式",
         "type": "string",
-        "default": "ignore",
-        "enum": ["accept", "reject", "ignore"],
-        "hint": "accept: 全部同意, reject: 全部拒绝, ignore: 忽略(管理员邀请及特殊规则除外)"
+        "default": "manual",
+        "enum": ["accept", "reject", "manual"],
+        "hint": "accept:全部同意, reject:全部拒绝, manual:将请求私发给所有管理员审批 (邀请者黑名单/管理员邀请优先)"
     },
-    "group_blacklist_enabled": {
-        "description": "【拉黑】是否启用邀请者黑名单功能",
-        "type": "bool",
-        "default": true
-    },
-    "group_blacklist_user_ids": {
-        "description": "【拉黑】邀请者黑名单用户ID列表",
+    "group_inviter_blacklist": {
+        "description": "邀请者黑名单 (QQ号)",
         "type": "list",
-        "default": []
+        "hint": "黑名单中的用户发来的群邀请将永远被拒绝。"
     },
-    "group_blacklist_rejection_message": {
-        "description": "【拉黑】拒绝黑名单用户邀请时的理由",
-        "type": "string",
-        "default": "抱歉，您在我的邀请黑名单中。"
-    },
-    "exclusive_members_enabled": {
-        "description": "【互斥】是否启用互斥成员检查",
-        "type": "bool",
-        "default": true
-    },
-    "exclusive_members_user_ids": {
-        "description": "【互斥】互斥成员用户ID列表",
+    "group_blacklist": {
+        "description": "群聊黑名单 (群号)",
         "type": "list",
-        "default": []
+        "hint": "Bot将拒绝加入或在加入后立刻退出。被踢后会自动将该群加入此列表。"
     },
-    "exclusive_members_exit_message": {
-        "description": "【互斥】检测到互斥成员时退群的理由",
-        "type": "string",
-        "default": "抱歉，我不能和TA在同一个群里。"
+    "exclusive_members": {
+        "description": "互斥成员列表 (QQ号)",
+        "type": "list",
+        "hint": "当Bot加入一个群时，如果群内已存在此列表中的任何成员，Bot将自动退群。"
     },
-    "min_group_size_enabled": {
-        "description": "【群规模】是否启用最小群人数检查",
-        "type": "bool",
-        "default": false
-    },
-    "min_group_size_count": {
-        "description": "【群规模】允许加入的最小群成员数",
+    "max_group_capacity": {
+        "description": "允许加入的最大群人数",
         "type": "int",
-        "default": 10
+        "hint": "当Bot加入的群人数超过此值时，会自动退群。填0为不限制。",
+        "default": 100
     },
-    "min_group_size_rejection_message": {
-        "description": "【群规模】因群太小而拒绝邀请的理由",
-        "type": "string",
-        "default": "抱歉，这个群人太少了。"
-    },
-    "welcome_message_enabled": {
-        "description": "【欢迎】是否启用自动发送入群欢迎语",
-        "type": "bool",
-        "default": true
-    },
-    "welcome_message_message": {
-        "description": "【欢迎】入群欢迎语内容",
-        "type": "string",
-        "default": "大家好，我来啦！"
-    },
-    "auto_leave_if_muted_enabled": {
-        "description": "【禁言】是否启用被禁言时间过长自动退群",
-        "type": "bool",
-        "default": true
-    },
-    "auto_leave_if_muted_duration_hours": {
-        "description": "【禁言】被禁言超过多少小时后自动退群",
+    "max_ban_duration": {
+        "description": "被禁言自动退群阈值(秒)",
         "type": "int",
-        "default": 24
+        "hint": "当Bot在一个群里被禁言的时长超过此值，会自动退群。填0为不启用。",
+        "default": 86400
+    },
+    "welcome_message": {
+        "description": "入群欢迎语",
+        "type": "string",
+        "hint": "成功加入群聊后发送的欢迎语。留空则不发送。"
+    },
+    "new_group_check_delay": {
+        "description": "新群延迟抽查时间（秒）",
+        "type": "int",
+        "hint": "机器人被拉入新群后，等待多少秒再执行自动抽查。默认600秒（10分钟）。",
+        "default": 600
+    },
+    "default_check_count": {
+        "description": "默认抽查条数",
+        "type": "int",
+        "hint": "当使用 /抽查 指令不指定条数时，默认获取的消息数量。推荐值：20",
+        "default": 20
+    },
+    "max_check_count": {
+        "description": "最大抽查条数",
+        "type": "int",
+        "hint": "为防止滥用，单次 /抽查 指令可获取的最大消息数量。推荐值：100",
+        "default": 100
     }
 }
