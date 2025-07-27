@@ -4,19 +4,31 @@
         "type": "string",
         "default": "manual",
         "enum": ["accept", "reject", "manual"],
-        "hint": "accept:全部同意, reject:全部拒绝, manual:将请求私发给所有管理员审批"
+        "hint": "accept:全部同意, reject:全部拒绝, manual:将请求私发给管理员并通过回复审批"
     },
     "group_invite_mode": {
         "description": "群邀请处理模式",
         "type": "string",
         "default": "manual",
         "enum": ["accept", "reject", "manual"],
-        "hint": "accept:全部同意, reject:全部拒绝, manual:将请求私发给所有管理员审批 (邀请者黑名单/管理员邀请优先)"
+        "hint": "accept:全部同意, reject:全部拒绝, manual:转交管理员审批 (特殊规则优先)"
     },
-    "group_inviter_blacklist": {
+    "inviter_filter_mode": {
+        "description": "邀请者过滤模式",
+        "type": "string",
+        "default": "none",
+        "enum": ["none", "blacklist", "whitelist"],
+        "hint": "none:不过滤, blacklist:启用邀请者黑名单, whitelist:启用邀请者白名单(与黑名单互斥)"
+    },
+    "inviter_blacklist": {
         "description": "邀请者黑名单 (QQ号)",
         "type": "list",
-        "hint": "黑名单中的用户发来的群邀请将永远被拒绝。"
+        "hint": "当过滤模式为'blacklist'时, 拒绝此列表用户的邀请。"
+    },
+    "inviter_whitelist": {
+        "description": "邀请者白名单 (QQ号)",
+        "type": "list",
+        "hint": "当过滤模式为'whitelist'时, 只接受此列表用户的邀请。"
     },
     "group_blacklist": {
         "description": "群聊黑名单 (群号)",
@@ -29,9 +41,9 @@
         "hint": "当Bot加入一个群时，如果群内已存在此列表中的任何成员，Bot将自动退群。"
     },
     "max_group_capacity": {
-        "description": "允许加入的最大群人数",
+        "description": "允许加入的最大群容量",
         "type": "int",
-        "hint": "当Bot加入的群人数超过此值时，会自动退群。填0为不限制。",
+        "hint": "当Bot的总群数超过此值时，会拒绝后续邀请。",
         "default": 100
     },
     "max_ban_duration": {
